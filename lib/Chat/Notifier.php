@@ -170,10 +170,11 @@ class Notifier {
 	 * @param Room $chat
 	 * @param IComment $comment
 	 * @param IComment $replyTo
+	 * @param string $subject
 	 * @return [] Users that were mentioned
 	 * @psalm-return array|array{array{id: string, type: string}}
 	 */
-	public function notifyReplyToAuthor(Room $chat, IComment $comment, IComment $replyTo): array {
+	public function notifyReplyToAuthor(Room $chat, IComment $comment, IComment $replyTo, string $subject = 'reply'): array {
 		if ($replyTo->getActorType() !== Attendee::ACTOR_USERS) {
 			// No reply notification when the replyTo-author was not a user
 			return [];
@@ -183,7 +184,7 @@ class Notifier {
 			return [];
 		}
 
-		$notification = $this->createNotification($chat, $comment, 'reply');
+		$notification = $this->createNotification($chat, $comment, $subject);
 		$notification->setUser($replyTo->getActorId());
 		$this->notificationManager->notify($notification);
 
@@ -232,6 +233,24 @@ class Notifier {
 				$notification->setUser($participant->getAttendee()->getActorId());
 				$this->notificationManager->notify($notification);
 			}
+		}
+	}
+
+	public function notifyReacted(Room $chat, IComment $comment, $authorId): void {
+		if ($comment->getActorType() !== Attendee::ACTOR_USERS || $comment->getActorId() === $authorId) {
+			return;
+		}
+
+		$defaultGroupNotification = $this->getDefaultGroupNotification();
+
+		$isOneToOne = $defaultGroupNotification === Participant::NOTIFY_DEFAULT
+			&& $chat->getType() === Room::TYPE_ONE_TO_ONE;
+		$isAlways = $defaultGroupNotification === Participant::NOTIFY_ALWAYS;
+
+		if ($isOneToOne || $isAlways) {
+			$notification = $this->createNotification($chat, $comment, 'reaction');
+			$notification->setUser($comment->getActorId());
+			$this->notificationManager->notify($notification);
 		}
 	}
 
@@ -420,7 +439,7 @@ class Notifier {
 	 * @param array $alreadyNotifiedUsers
 	 * @return bool
 	 */
-	protected function shouldParticipantBeNotified(Participant $participant, IComment $comment, array $alreadyNotifiedUsers): bool {
+	protected function shouldParticipantBeNotified(Participant $participant, IComment $comment, array $alreadyNotifiedUsers = []): bool {
 		if ($participant->getAttendee()->getActorType() !== Attendee::ACTOR_USERS) {
 			return false;
 		}
