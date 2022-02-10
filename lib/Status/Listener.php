@@ -26,6 +26,8 @@ declare(strict_types=1);
 
 namespace OCA\Talk\Status;
 
+use OCA\Talk\Events\EndCallForEveryoneEvent;
+use OCA\Talk\Events\ModifyEveryoneEvent;
 use OCA\Talk\Events\ModifyParticipantEvent;
 use OCA\Talk\Model\Attendee;
 use OCA\Talk\Room;
@@ -62,8 +64,21 @@ class Listener {
 	}
 
 	public function revertUserStatus(ModifyParticipantEvent $event): void {
+		if ($event instanceof ModifyEveryoneEvent) {
+			// Do not revert the status with 3 queries per user.
+			// We will update it in one go at the end.
+			return;
+		}
+
 		if ($event->getParticipant()->getAttendee()->getActorType() === Attendee::ACTOR_USERS) {
 			$this->statusManager->revertUserStatus($event->getParticipant()->getAttendee()->getActorId(), 'call', IUserStatus::AWAY);
+		}
+	}
+
+	public function revertUserStatusOnEndCallForEveryone(EndCallForEveryoneEvent $event): void {
+		$userIds = $event->getUserIds();
+		if (!empty($userIds)) {
+			$this->statusManager->revertMultipleUserStatus($userIds, 'call', IUserStatus::AWAY);
 		}
 	}
 }
