@@ -55,6 +55,12 @@ class Listener {
 			$listener = \OC::$server->get(self::class);
 			$listener->revertUserStatus($event);
 		});
+
+		$dispatcher->addListener(Room::EVENT_AFTER_END_CALL_FOR_EVERYONE, static function (EndCallForEveryoneEvent $event) {
+			/** @var self $listener */
+			$listener = \OC::$server->get(self::class);
+			$listener->revertUserStatusOnEndCallForEveryone($event);
+		});
 	}
 
 	public function setUserStatus(ModifyParticipantEvent $event): void {
