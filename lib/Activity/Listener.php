@@ -91,7 +91,8 @@ class Listener {
 
 		$listener = static function (RoomEvent $event): void {
 			if ($event instanceof ModifyEveryoneEvent) {
-				// No individual system message if the call is ended for everyone
+				// The call activity was generated already if the call is ended
+				// for everyone
 				return;
 			}
 
